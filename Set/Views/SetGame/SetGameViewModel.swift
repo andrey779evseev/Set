@@ -6,13 +6,14 @@
 //
 
 import Foundation
+import SwiftUI
 
 class SetGameViewModel: ObservableObject {
     
     @Published var model = SetGameModel()
     
     func newGame() {
-        model = SetGameModel()
+        model.restart()
     }
     
     func choose(_ card: Card) {
@@ -20,14 +21,20 @@ class SetGameViewModel: ObservableObject {
     }
     
     func deal() {
-        model.replaceOrDealCards()
+        withAnimation(.easeInOut) {        
+            model.replaceOrDealCards()
+        }
     }
     
     var cards: [Card] {
-        return model.cards
+        model.cards
     }
     
-    var dealDisabled: Bool {
-        return model.dealDisabled
+    var showedCards: [Card] {
+        model.showedCards
+    }
+    
+    var discardPile: [Card] {
+        model.discardPile
     }
 }

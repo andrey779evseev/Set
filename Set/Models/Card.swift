@@ -25,6 +25,7 @@ struct Card: Identifiable, Equatable {
     var count: CountFeature
     var selected: Bool = false
     var matched: Bool?
+    var dealt: Bool = false
     
     var swiftUiColor: Color {
         switch self.color {

@@ -11,24 +11,40 @@ import SwiftUI
 
 struct SetGameModel {
     init() {
-        deck = SetGameModel.createCards(count: .full)
+        cards = SetGameModel.createCards(count: .full)
         dealCards(12)
     }
-    private var deck: [Card]
-    private var matchedCards: [Card] = []
     private(set) var cards: [Card] = []
-    
-    var dealDisabled: Bool {
-        return deck.isEmpty
-    }
+    private(set) var discardPile: [Card] = []
     
     private var selected: [Card] {
         return cards.filter { card in
-            card.selected
+            card.selected && card.dealt
         }
+    }
+    var deck: [Card] {
+        cards.filter {$0.dealt == false && ($0.matched == nil || $0.matched == false)}
+    }
+    
+    var showedCards: [Card] {
+        return cards.filter {$0.dealt == true}
     }
     
     private var countShowed: Int = 12
+    
+    mutating func restart() {
+        for _ in discardPile.indices {
+            cards.append(discardPile[0])
+            discardPile.remove(at: 0)
+        }
+        for index in cards.indices {
+            cards[index].matched = nil
+            cards[index].selected = false
+            cards[index].dealt = false
+        }
+        cards.shuffle()
+        dealCards(12)
+    }
     
     mutating func choose(_ card: Card) {
         if selected.count < 3 {
@@ -56,20 +72,30 @@ struct SetGameModel {
             if let index = oneById(id: card.id) {
                 if let matched = cards[index].matched {
                     if matched {
-                        matchedCards.append(card)
-                        cards.remove(at: index)
-                        if !deck.isEmpty {
-                            cards.insert(deck.first!, at: index)
-                            deck.removeFirst()
-                        }
+                        discardCard(at: index)
                     } else {
-                        cards[index].matched = false
-                        cards[index].matched = nil
-                        cards[index].selected = false
+                        deselectCard(index: index)
                     }
                 }
             }
         }
+    }
+    
+    private mutating func deselectCard(card: Card? = nil, index: Int? = nil) {
+        if card != nil && index == nil {
+            if let index = oneById(id: card!.id) {
+                cards[index].selected = false
+                cards[index].matched = nil
+            }
+        } else {
+            cards[index!].selected = false
+            cards[index!].matched = nil
+        }
+    }
+    
+    private mutating func discardCard(at index: Int) {
+        cards[index].dealt = false
+        discardPile.append(cards.remove(at: index))
     }
     
     mutating func replaceOrDealCards() {
@@ -77,23 +103,37 @@ struct SetGameModel {
             if isSelectedSet() {
                 selected.forEach {card in
                     if let index = oneById(id: card.id) {
-                        cards.remove(at: index)
+                        discardCard(at: index)
                         if !deck.isEmpty {
-                            cards.insert(deck.first!, at: index)
-                            deck.removeFirst()
+                            if let i = oneById(id: deck.first!.id) {
+                                cards.move(from: i, to: index)
+                                cards[index].dealt = true
+                            }
                         }
                     }
                 }
-                return
+            } else {
+                selected.forEach { card in
+                    deselectCard(card: card)
+                }
+                dealCards()
             }
+        } else {
+            dealCards()
         }
-        dealCards()
     }
     
     private mutating func dealCards(_ count: Int = 3) {
-        let array = deck.count > count ? Array(deck[0...count]) : deck
-        cards.append(contentsOf: array)
-        deck.removeSubrange(0...count)
+        var _count = 0
+        for card in cards.filter({!$0.dealt && !($0.matched ?? false)}) {
+            if let index = oneById(id: card.id) {
+                cards[index].dealt = true
+                _count += 1
+            }
+            if _count == count {
+                break
+            }
+        }
     }
     
     private func oneById(id: UUID) -> Int? {
